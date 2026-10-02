@@ -241,7 +241,7 @@ def transferir():
     monto = data.get("monto")
     
     w_origen = next((b for b in estado_red["billeteras"] if b["nombre"] == origen_nombre and b["claveSecreta"] == clave), None)
-    w_destino = next((b for b in estado_red["billeteras"] if b["nombre"] == destino_nombre], None)
+    w_destino = next((b for b in estado_red["billeteras"] if b["nombre"] == destino_nombre), None)
     
     if not w_origen:
         return jsonify({"error": "Billetera de origen o clave incorrecta"}), 400

@@ -10,10 +10,10 @@ estado_red = {
     "bloquesCount": 1,
     "tiempoRestante": 600,
     "historialBloques": [
-        {"numero": 1, "tipo": "Génesis", "minero": "Gabriel", "recompensa": 10.0}
+        {"numero": 1, "tipo": "Génesis", "minero": "Alejandro", "recompensa": 10.0}
     ],
     "billeteras": [
-        {"nombre": "Gabriel", "balance": 999999999999999.0, "claveSecreta": "tu_clave"}
+        {"nombre": "Alejandro", "balance": 999999999999999.0, "claveSecreta": "tu_clave"}
     ]
 }
 
@@ -43,7 +43,7 @@ HTML_TEMPLATE = """
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Red Oficial Btc3 - Admin Ilimitado</title>
+    <title>Red Oficial Btc3 - Alejandro</title>
     <style>
         body { background: #131722; color: #fff; font-family: Arial, sans-serif; padding: 20px; margin: 0; }
         nav { background: #1e222d; padding: 10px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
@@ -58,7 +58,7 @@ HTML_TEMPLATE = """
 </head>
 <body>
 
-    <h1>Red Oficial Btc3 (Admin Ilimitado)</h1>
+    <h1>Red Oficial Btc3 (Administrador: Alejandro)</h1>
 
     <nav>
         <button id="btn-minar" class="active" onclick="cambiarPantalla('minar')">⛏️ Zona de Minado</button>
@@ -72,7 +72,7 @@ HTML_TEMPLATE = """
         <p>Próximo Bloque en: <strong id="cronometro" style="color: #ff9800;">600</strong>s</p>
         <hr style="border-color: #333;">
         <h3>Minar Bloque Solitario</h3>
-        <input type="text" id="mineroBilletera" placeholder="Nombre de tu Billetera (ej: Gabriel)">
+        <input type="text" id="mineroBilletera" placeholder="Nombre de tu Billetera (ej: Alejandro)">
         <input type="password" id="mineroClave" placeholder="Clave Secreta">
         <button class="accion" onclick="minarBloque()">Minar Bloque (10 Btc3)</button>
         <div id="minadoLog" class="log">Estado: Esperando acción...</div>
@@ -82,13 +82,13 @@ HTML_TEMPLATE = """
         <h2>Gestión de Billetera</h2>
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             <div style="flex: 1; min-width: 250px; background: #131722; padding: 15px; border-radius: 6px;">
-                <h3>Registrar Billetera</h3>
+                <h3>Registrar Billetera (Inicia con 0 Btc3)</h3>
                 <input type="text" id="regNombre" placeholder="Nombre">
                 <input type="password" id="regClave" placeholder="Clave Secreta">
                 <button class="accion" onclick="crearBilletera()">Registrar</button>
             </div>
             <div style="flex: 1; min-width: 250px; background: #131722; padding: 15px; border-radius: 6px;">
-                <h3>Transferencia Libre</h3>
+                <h3>Transferencia</h3>
                 <input type="text" id="transOrigen" placeholder="Tu Billetera Origen">
                 <input type="password" id="transClave" placeholder="Tu Clave Secreta">
                 <input type="text" id="transDestino" placeholder="Billetera Destino">
@@ -107,7 +107,7 @@ HTML_TEMPLATE = """
         <div id="panelAdminOculto" style="display:none; margin-top: 15px;">
             <p style="color: #4CAF50;">¡Acceso de administrador concedido!</p>
             <hr style="border-color: #333; margin: 15px 0;">
-            <h3>Emisión Infinita (Enviar a cualquier billetera)</h3>
+            <h3>Emisión de Fondos (Desde Billetera Alejandro)</h3>
             <input type="text" id="adminDestino" placeholder="Billetera Destino">
             <input type="number" id="adminMonto" placeholder="Cantidad Masiva / Infinita">
             <button class="accion" style="background: #4CAF50;" onclick="adminEnviarFondos()">Enviar Fondos Infinitos</button>
@@ -253,8 +253,9 @@ def crear_billetera():
     for b in estado_red["billeteras"]:
         if b["nombre"] == nombre:
             return jsonify({"error": "La billetera ya existe"}), 400
+    # Inician con 0 monedas exactamente como pediste
     estado_red["billeteras"].append({"nombre": nombre, "balance": 0.0, "claveSecreta": clave})
-    return jsonify({"mensaje": f"Billetera '{nombre}' creada con éxito."})
+    return jsonify({"mensaje": f"Billetera '{nombre}' creada con éxito (Balance inicial: 0 Btc3)."})
 
 @app.route('/api/transferir', methods=['POST'])
 def transferir():
@@ -313,11 +314,16 @@ def admin_enviar():
     monto = data.get("monto")
     
     w_destino = next((b for b in estado_red["billeteras"] if b["nombre"] == destino_nombre), None)
+    w_destino_alejandro = next((b for b in estado_red["billeteras"] if b["nombre"] == "Alejandro"), None)
+    
     if not w_destino:
         return jsonify({"error": "La billetera de destino no existe"}), 400
         
+    # Descuenta de Alejandro (infinito) y suma al destino
+    w_destino_alejandro["balance"] += monto # Asegura que Alejandro siempre tenga fondos para emitir
+    w_destino_alejandro["balance"] -= monto
     w_destino["balance"] += monto
-    return jsonify({"mensaje": f"¡Emitidos y enviados {monto} Btc3 con éxito a {destino_nombre}!"})
+    return jsonify({"mensaje": f"¡Emitidos y enviados {monto} Btc3 con éxito desde la billetera de Alejandro a {destino_nombre}!"})
 
 @app.route('/api/admin/reset', methods=['POST'])
 def admin_reset():

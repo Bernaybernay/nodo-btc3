@@ -311,12 +311,11 @@ button { background: #f7931a; color: #fff; border: none; padding: 10px; font-wei
 <div class="card">
 <h2>🔒 Panel Admin Btc3</h2>
 {% if error %}<p style="color:#f85149; font-size:13px;">{{ error }}</p>{% endif %}
-<form method="POST"><input type="password" name="password" placeholder="Contraseña de Administrador" required><button type="submit">Ingresar</button></form>
+<form method="POST"><input type="password" name="password" autocomplete="current-password" placeholder="Contraseña de Administrador" required><button type="submit">Ingresar</button></form>
 <a href="/" class="back">← Volver al panel de mineros</a>
 </div></body></html>
 """
 
-# Pantalla limpia que verán tus amigos/mineros
 MINERO_HTML = """
 <!DOCTYPE html>
 <html lang="es">
@@ -355,8 +354,8 @@ th { color: #f7931a; }
 <h2>🔑 Crear Billetera</h2>
 <form action="/crear_billetera" method="POST">
 <input type="hidden" name="redireccion" value="index">
-<input type="text" name="nombre_billetera" placeholder="Nombre de Billetera" required>
-<input type="password" name="clave_personal" placeholder="Tu Clave Secreta" required>
+<input type="text" name="nombre_billetera" placeholder="Nombre de Billetera" required autocomplete="off">
+<input type="password" name="clave_personal" placeholder="Tu Clave Secreta" required autocomplete="new-password" value="">
 <button type="submit">Registrar Billetera</button>
 </form>
 </div>
@@ -364,8 +363,8 @@ th { color: #f7931a; }
 <!-- MINERIA SOLITARIO -->
 <div class="box">
 <h2>⛏️ Minería Solitario</h2>
-<input type="text" id="wSolo" placeholder="Tu Billetera" required>
-<input type="password" id="kSolo" placeholder="Tu Clave Secreta" required>
+<input type="text" id="wSolo" placeholder="Tu Billetera" required autocomplete="off">
+<input type="password" id="kSolo" placeholder="Tu Clave Secreta" required autocomplete="new-password" value="">
 <button type="button" onclick="minarSolo()" id="btnSolo">Minar Bloque</button>
 <p id="stSolo" style="font-size:12px; color:#8b949e;"></p>
 </div>
@@ -373,8 +372,8 @@ th { color: #f7931a; }
 <!-- MINERIA POOL -->
 <div class="box">
 <h2>👥 Minería Pool</h2>
-<input type="text" id="wPool" placeholder="Tu Billetera" required>
-<input type="password" id="kPool" placeholder="Tu Clave Secreta" required>
+<input type="text" id="wPool" placeholder="Tu Billetera" required autocomplete="off">
+<input type="password" id="kPool" placeholder="Tu Clave Secreta" required autocomplete="new-password" value="">
 <button type="button" onclick="togglePool()" id="btnPool">Unirse a Pool</button>
 <p id="stPool" style="font-size:12px; color:#8b949e;">Desconectado</p>
 </div>
@@ -384,9 +383,9 @@ th { color: #f7931a; }
 <h2>💸 Transferir</h2>
 <form action="/transferir" method="POST">
 <input type="hidden" name="redireccion" value="index">
-<input type="text" name="origen" placeholder="Tu Billetera Origen" required>
-<input type="password" name="clave" placeholder="Tu Clave Secreta" required>
-<input type="text" name="destino" placeholder="Billetera Destino" required>
+<input type="text" name="origen" placeholder="Tu Billetera Origen" required autocomplete="off">
+<input type="password" name="clave" placeholder="Tu Clave Secreta" required autocomplete="new-password" value="">
+<input type="text" name="destino" placeholder="Billetera Destino" required autocomplete="off">
 <input type="number" step="any" name="cantidad" placeholder="Monto Btc3" required>
 <button type="submit">Enviar Fondos</button>
 </form>
@@ -479,7 +478,6 @@ function togglePool() {
 </html>
 """
 
-# Pantalla completa de administración (Solo para ti)
 ADMIN_HTML = """
 <!DOCTYPE html>
 <html lang="es">
@@ -522,8 +520,8 @@ th { color: #f7931a; }
 <h2>🔑 Crear Billetera</h2>
 <form action="/crear_billetera" method="POST">
 <input type="hidden" name="redireccion" value="admin">
-<input type="text" name="nombre_billetera" placeholder="Nombre de Billetera" required>
-<input type="password" name="clave_personal" placeholder="Tu Clave Secreta" required>
+<input type="text" name="nombre_billetera" placeholder="Nombre de Billetera" required autocomplete="off">
+<input type="password" name="clave_personal" placeholder="Tu Clave Secreta" required autocomplete="new-password" value="">
 <button type="submit">Registrar Billetera</button>
 </form>
 </div>
@@ -531,8 +529,8 @@ th { color: #f7931a; }
 <!-- MINERIA SOLITARIO -->
 <div class="box">
 <h2>⛏️ Minería Solitario</h2>
-<input type="text" id="wSolo" placeholder="Tu Billetera" required>
-<input type="password" id="kSolo" placeholder="Tu Clave Secreta" required>
+<input type="text" id="wSolo" placeholder="Tu Billetera" required autocomplete="off">
+<input type="password" id="kSolo" placeholder="Tu Clave Secreta" required autocomplete="new-password" value="">
 <button type="button" onclick="minarSolo()" id="btnSolo">Minar Bloque</button>
 <p id="stSolo" style="font-size:12px; color:#8b949e;"></p>
 </div>
@@ -540,8 +538,8 @@ th { color: #f7931a; }
 <!-- MINERIA POOL -->
 <div class="box">
 <h2>👥 Minería Pool</h2>
-<input type="text" id="wPool" placeholder="Tu Billetera" required>
-<input type="password" id="kPool" placeholder="Tu Clave Secreta" required>
+<input type="text" id="wPool" placeholder="Tu Billetera" required autocomplete="off">
+<input type="password" id="kPool" placeholder="Tu Clave Secreta" required autocomplete="new-password" value="">
 <button type="button" onclick="togglePool()" id="btnPool">Unirse a Pool</button>
 <p id="stPool" style="font-size:12px; color:#8b949e;">Desconectado</p>
 </div>
@@ -551,9 +549,9 @@ th { color: #f7931a; }
 <h2>💸 Transferir</h2>
 <form action="/transferir" method="POST">
 <input type="hidden" name="redireccion" value="admin">
-<input type="text" name="origen" placeholder="Tu Billetera Origen" required>
-<input type="password" name="clave" placeholder="Tu Clave Secreta" required>
-<input type="text" name="destino" placeholder="Billetera Destino" required>
+<input type="text" name="origen" placeholder="Tu Billetera Origen" required autocomplete="off">
+<input type="password" name="clave" placeholder="Tu Clave Secreta" required autocomplete="new-password" value="">
+<input type="text" name="destino" placeholder="Billetera Destino" required autocomplete="off">
 <input type="number" step="any" name="cantidad" placeholder="Monto Btc3" required>
 <button type="submit">Enviar Fondos</button>
 </form>

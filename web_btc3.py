@@ -17,7 +17,7 @@ estado_red = {
     "billeteras": [
         {"nombre": "Alejandro", "balance": 999999999999999.0, "claveSecreta": "tu_clave"}
     ],
-    "minerosActivos": {} # Guarda: {nombre: hashrate_actual}
+    "minerosActivos": {}
 }
 
 CLAVE_ADMIN = "30052823"
@@ -27,7 +27,6 @@ def bucle_cronometro():
         time.sleep(1)
         estado_red["tiempoRestante"] -= 1
         
-        # Actualizar hashrates simulados de los mineros activos en cada segundo
         for m in estado_red["minerosActivos"]:
             estado_red["minerosActivos"][m] = round(random.uniform(25.0, 50.0), 2)
 
@@ -61,7 +60,7 @@ HTML_TEMPLATE = """
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Red Oficial Btc3 - Mineros en Red</title>
+    <title>Red Oficial Btc3 - Minería Persistente</title>
     <style>
         body { background: #131722; color: #fff; font-family: Arial, sans-serif; padding: 20px; margin: 0; }
         nav { background: #1e222d; padding: 10px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
@@ -82,7 +81,7 @@ HTML_TEMPLATE = """
 </head>
 <body>
 
-    <h1>Red Oficial Btc3 (Monitoreo de Mineros en Línea)</h1>
+    <h1>Red Oficial Btc3 (Minado Persistente)</h1>
 
     <nav>
         <button id="btn-minar" class="active" onclick="cambiarPantalla('minar')">⛏️ Zona de Minado</button>
@@ -200,7 +199,6 @@ async function sincronizar() {
         document.getElementById('bloquesCount').innerText = data.bloquesCount;
         document.getElementById('ultimoMinero').innerText = data.ultimoMinero;
 
-        // Actualizar lista de mineros conectados en la red
         let contenedor = document.getElementById('listaMinerosRed');
         let mineros = data.minerosActivos;
         let keys = Object.keys(mineros);
@@ -216,6 +214,17 @@ async function sincronizar() {
                 </div>`;
             }
             contenedor.innerHTML = html;
+        }
+
+        // Si el servidor se reinició y ya no está nuestro minero, re-enviar la señal si estábamos activos
+        let minero = localStorage.getItem('btc3_minero');
+        let clave = localStorage.getItem('btc3_clave');
+        if (minero && minandoActivo && !mineros[minero]) {
+            fetch('/api/minar/iniciar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ minero, clave })
+            });
         }
     } catch (e) {
         console.error("Error", e);
@@ -238,6 +247,14 @@ async function iniciarMinado() {
         return;
     }
 
+    // Guardar en el navegador para persistencia al refrescar
+    localStorage.setItem('btc3_minero', minero);
+    localStorage.setItem('btc3_clave', clave);
+
+    activarBucleMinado(minero);
+}
+
+function activarBucleMinado(minero) {
     minandoActivo = true;
     let logBox = document.getElementById('minadoLog');
     logBox.innerHTML = `[+] Minero ${minero} conectado a la red. Buscando bloques...<br>`;
@@ -254,14 +271,40 @@ async function iniciarMinado() {
 async function detenerMinado() {
     minandoActivo = false;
     if (intervaloHash) clearInterval(intervaloHash);
-    let minero = document.getElementById('mineroBilletera').value;
-    await fetch('/api/minar/detener', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ minero })
-    });
+    let minero = document.getElementById('mineroBilletera').value || localStorage.getItem('btc3_minero');
+    
+    localStorage.removeItem('btc3_minero');
+    localStorage.removeItem('btc3_clave');
+
+    if (minero) {
+        await fetch('/api/minar/detener', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ minero })
+        });
+    }
     document.getElementById('minadoLog').innerText = "Estado: Minero detenido.";
 }
+
+// Auto-recuperar sesión al cargar la página si estaba minando
+window.addEventListener('load', () => {
+    let guardadoMinero = localStorage.getItem('btc3_minero');
+    let guardadoClave = localStorage.getItem('btc3_clave');
+    if (guardadoMinero && guardadoClave) {
+        document.getElementById('mineroBilletera').value = guardadoMinero;
+        document.getElementById('mineroClave').value = guardadoClave;
+        
+        fetch('/api/minar/iniciar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ minero: guardadoMinero, clave: guardadoClave })
+        }).then(res => {
+            if (res.ok) {
+                activarBucleMinado(guardadoMinero);
+            }
+        });
+    }
+});
 
 async function crearBilletera() {
     let nombre = document.getElementById('regNombre').value;

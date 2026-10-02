@@ -19,7 +19,8 @@ estado_red = {
     ],
     "minerosActivos": {},
     "ordenesMercado": [],
-    "walletOficialUSDT": "0x9b4fecb9684f8949925b836fb0863e9249a29fc0"
+    "walletOficialUSDT": "0x9b4fecb9684f8949925b836fb0863e9249a29fc0",
+    "tasaBtc3Usdt": 10.0  # 1 USDT = 10 Btc3
 }
 
 CLAVE_ADMIN = "30052823"
@@ -83,6 +84,7 @@ HTML_TEMPLATE = """
         .minero-item { background: #1e222d; padding: 8px 12px; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid #4CAF50; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
         .orden-card { background: #131722; padding: 10px; margin-bottom: 8px; border-radius: 4px; border: 1px solid #444; display: flex; justify-content: space-between; align-items: center; }
         .banner-anuncio { background: linear-gradient(135deg, #ff9800, #ff5722); color: #fff; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .calculadora-box { background: #111; padding: 12px; border-radius: 6px; margin-top: 10px; border: 1px dashed #ff9800; }
     </style>
 </head>
 <body>
@@ -160,21 +162,29 @@ HTML_TEMPLATE = """
         
         <!-- ANUNCIO PUBLICITARIO -->
         <div class="banner-anuncio">
-            <h2 style="margin: 0 0 5px 0;">🚀 ¡También puedes comprar tus monedas de pre-lanzamiento!</h2>
-            <p style="margin: 0; font-size: 14px;">Asegura tu futuro y adquiere Btc3 antes de su expansión global.</p>
+            <h2 style="margin: 0 0 5px 0;">🚀 ¡Tasa Oficial de Adquisición!</h2>
+            <p style="margin: 0; font-size: 15px;"><strong>1 USDT = 10 Btc3</strong>. Compra segura y directa con acreditación vía WhatsApp.</p>
         </div>
 
         <h2>Exchange P2P & Depósito USDT</h2>
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             
-            <!-- Columna de Depósito Real con Botón de WhatsApp -->
+            <!-- Columna de Depósito Real con Calculadora y Botón de WhatsApp -->
             <div style="flex: 1; min-width: 280px; background: #131722; padding: 15px; border-radius: 6px; border: 1px solid #ff9800;">
                 <h3 style="color: #ff9800; margin-top:0;">1. Depositar USDT (Red ETH/ERC20)</h3>
-                <p style="font-size: 13px; color: #ccc;">Envía tus USDT a la siguiente dirección oficial de depósito:</p>
+                <p style="font-size: 13px; color: #ccc;">Envía tus USDT a la dirección oficial:</p>
                 <div style="background: #111; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 11px; word-break: break-all; color: #4CAF50;" id="walletOficial">
                     0x9b4fecb9684f8949925b836fb0863e9249a29fc0
                 </div>
-                <p style="font-size: 12px; color: #888; margin-top: 10px;">Una vez realizado el depósito, confirma enviando tu comprobante por WhatsApp:</p>
+                
+                <!-- Calculadora de Tasa (1 USD = 10 Btc3) -->
+                <div class="calculadora-box">
+                    <p style="margin: 0 0 5px 0; font-size: 13px; color: #ff9800; font-weight: bold;">🧮 Calculadora (1 USDT = 10 Btc3):</p>
+                    <input type="number" id="calcUsdt" placeholder="Cantidad de USDT a invertir" oninput="calcularBtc3Recibidos()">
+                    <p style="margin: 8px 0 0 0; font-size: 13px;">Recibirás: <strong id="resultadoBtc3" style="color: #4CAF50;">0.0 Btc3</strong></p>
+                </div>
+
+                <p style="font-size: 12px; color: #888; margin-top: 10px;">Confirma tu depósito enviando tu comprobante por WhatsApp:</p>
                 <a href="https://wa.me/59165993417539?text=Hola,%20adjunto%20mi%20comprobante%20de%20depósito%20USDT%20para%20la%20acreditación%20de%20saldo%20en%20Btc3." class="whatsapp" target="_blank">
                     💬 Confirmar por WhatsApp (65993417539)
                 </a>
@@ -186,11 +196,10 @@ HTML_TEMPLATE = """
                 <input type="text" id="vendeNombre" placeholder="Tu Billetera" oninput="verificarSaldoVenta()">
                 <input type="password" id="vendeClave" placeholder="Tu Clave Secreta" oninput="verificarSaldoVenta()">
                 
-                <!-- Indicador de saldo disponible en tiempo real -->
                 <div id="avisoSaldoVenta" style="font-size: 13px; color: #4CAF50; margin: 5px 0; min-height: 18px;"></div>
 
                 <input type="number" id="vendeCantidad" placeholder="Cantidad de Btc3 a Vender">
-                <input type="number" id="vendePrecio" placeholder="Precio en USDT por cada Btc3">
+                <input type="number" id="vendePrecio" placeholder="Precio en USDT por cada Btc3 (Sugerido: 0.1)">
                 <button class="accion" onclick="crearOrdenVenta()">Publicar Oferta</button>
             </div>
 
@@ -239,6 +248,12 @@ function cambiarPantalla(nombre) {
     document.getElementById('pantalla-' + nombre).classList.add('active');
     document.getElementById('btn-' + nombre).classList.add('active');
     if(nombre === 'exchange') cargarLibroOrdenes();
+}
+
+function calcularBtc3Recibidos() {
+    let usdt = parseFloat(document.getElementById('calcUsdt').value) || 0;
+    let btc3 = usdt * 10; // Tasa fija: 1 USDT = 10 Btc3
+    document.getElementById('resultadoBtc3').innerText = btc3.toFixed(2) + " Btc3";
 }
 
 setInterval(() => {
@@ -538,7 +553,8 @@ def api_estado():
         "tiempoRestante": estado_red["tiempoRestante"],
         "ultimoMinero": estado_red["ultimoMinero"],
         "historialBloques": estado_red["historialBloques"],
-        "minerosActivos": estado_red["minerosActivos"]
+        "minerosActivos": estado_red["minerosActivos"],
+        "tasaBtc3Usdt": estado_red["tasaBtc3Usdt"]
     })
 
 @app.route('/api/billetera/crear', methods=['POST'])

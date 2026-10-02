@@ -16,25 +16,28 @@ def cargar_datos():
     if not os.path.exists(CONFIG_FILE):
         datos_iniciales = {
             "blockchain": [], 
-            "billeteras": {},  # {"nombre": {"password": "hash", "balance": 0.0}}
+            "billeteras": {},  
             "transacciones": [],
             "ultimo_tiempo_bloque": 0,
             "aportes_pool": {},
-            "limite_maximo": LIMITE_MAXIMO_DEFAULT
+            "limite_maximo": LIMITE_MAXIMO_DEFAULT,
+            "monedas_extra_admin": 0.0
         }
         guardar_datos(datos_iniciales)
         return datos_iniciales
     try:
         with open(CONFIG_FILE, 'r') as f:
             datos = json.load(f)
-            # Asegurar compatibilidad si se actualiza la estructura
             if "limite_maximo" not in datos:
                 datos["limite_maximo"] = LIMITE_MAXIMO_DEFAULT
+            if "monedas_extra_admin" not in datos:
+                datos["monedas_extra_admin"] = 0.0
             return datos
     except json.JSONDecodeError:
         return {
             "blockchain": [], "billeteras": {}, "transacciones": [], 
-            "ultimo_tiempo_bloque": 0, "aportes_pool": {}, "limite_maximo": LIMITE_MAXIMO_DEFAULT
+            "ultimo_tiempo_bloque": 0, "aportes_pool": {}, 
+            "limite_maximo": LIMITE_MAXIMO_DEFAULT, "monedas_extra_admin": 0.0
         }
 
 def guardar_datos(datos):
@@ -57,8 +60,6 @@ def index():
     datos = cargar_datos()
     limite = datos.get('limite_maximo', LIMITE_MAXIMO_DEFAULT)
     suministro_actual = len(datos['blockchain']) * RECOMPENSA_BLOQUE
-    
-    # Sumar también monedas añadidas manualmente por el Admin si las hubiera
     monedas_extra = datos.get('monedas_extra_admin', 0.0)
     suministro_total = suministro_actual + monedas_extra
 
@@ -87,7 +88,7 @@ def crear_billetera():
 
     datos = cargar_datos()
     if nombre in datos['billeteras']:
-        return "Error: Esta billetera ya existe. Si es tuya, usa tu clave para iniciar sesión o minar. Si olvidaste la clave, contacta al administrador."
+        return "Error: Esta billetera ya existe. Si es tuya, usa tu clave para iniciar sesión o minar."
 
     datos['billeteras'][nombre] = {
         "password": hashlib.sha256(clave.encode()).hexdigest(),
@@ -113,7 +114,7 @@ def minar_solo():
     
     clave_hash = hashlib.sha256(clave.encode()).hexdigest()
     if billeteras[billetera]['password'] != clave_hash:
-        return "Error: Clave personal incorrecta. Verifica tu contraseña."
+        return "Error: Clave personal incorrecta."
 
     tiempo_actual = time.time()
     if datos['ultimo_tiempo_bloque'] > 0:
@@ -232,15 +233,14 @@ def transferir():
     guardar_datos(datos)
     return redirect(url_for('index'))
 
-# --- PANEL DE ADMINISTRADOR PARA AÑADIR MONEDAS ---
 @app.route('/admin_monedas', methods=['POST'])
 def admin_monedas():
     if not session.get('autenticado'):
         return redirect(url_for('index'))
 
     try:
-        nuevas_monedas = float(request.form.get('cantidad_extra', 0))
-        nuevo_limite = request.form.get('nuevo_limite')
+        nuevas_monedas = float(request.form.get('cantidad_extra', 0) or 0)
+        nuevo_limite_input = request.form.get('nuevo_limite', '').strip()
     except ValueError:
         return "Valores inválidos."
 
@@ -250,14 +250,13 @@ def admin_monedas():
 
     if nuevas_monedas > 0:
         datos["monedas_extra_admin"] += nuevas_monedas
-        # Opcionalmente se los puedes asignar directamente a una billetera o dejarlos en circulación
         destino_admin = request.form.get('billetera_admin', '').strip()
         if destino_admin and destino_admin in datos['billeteras']:
             datos['billeteras'][destino_admin]['balance'] += nuevas_monedas
 
-    if nuevo_limite:
+    if nuevo_limite_input:
         try:
-            datos['limite_maximo'] = float(nuevo_limite)
+            datos['limite_maximo'] = float(nuevo_limite_input)
         except ValueError:
             pass
 

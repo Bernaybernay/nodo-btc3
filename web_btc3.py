@@ -178,8 +178,12 @@ HTML_TEMPLATE = """
             <!-- Columna de Publicar Orden de Venta de Btc3 -->
             <div style="flex: 1; min-width: 280px; background: #131722; padding: 15px; border-radius: 6px;">
                 <h3 style="margin-top:0;">2. Vender Btc3 por USDT</h3>
-                <input type="text" id="vendeNombre" placeholder="Tu Billetera">
-                <input type="password" id="vendeClave" placeholder="Tu Clave Secreta">
+                <input type="text" id="vendeNombre" placeholder="Tu Billetera" oninput="verificarSaldoVenta()">
+                <input type="password" id="vendeClave" placeholder="Tu Clave Secreta" oninput="verificarSaldoVenta()">
+                
+                <!-- Indicador de saldo disponible en tiempo real -->
+                <div id="avisoSaldoVenta" style="font-size: 13px; color: #4CAF50; margin: 5px 0; min-height: 18px;"></div>
+
                 <input type="number" id="vendeCantidad" placeholder="Cantidad de Btc3 a Vender">
                 <input type="number" id="vendePrecio" placeholder="Precio en USDT por cada Btc3">
                 <button class="accion" onclick="crearOrdenVenta()">Publicar Oferta</button>
@@ -371,6 +375,33 @@ async function consultarSaldo() {
     }
 }
 
+async function verificarSaldoVenta() {
+    let nombre = document.getElementById('vendeNombre').value;
+    let clave = document.getElementById('vendeClave').value;
+    let aviso = document.getElementById('avisoSaldoVenta');
+    
+    if (!nombre || !clave) {
+        aviso.innerText = "";
+        return;
+    }
+
+    try {
+        let res = await fetch('/api/billetera/saldo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, clave })
+        });
+        let data = await res.json();
+        if (res.ok) {
+            aviso.innerHTML = `✅ Disponible para vender: <strong>${data.balance} Btc3</strong>`;
+        } else {
+            aviso.innerHTML = `<span style="color: #f44336;">⚠️ Credenciales incorrectas</span>`;
+        }
+    } catch(e) {
+        aviso.innerText = "";
+    }
+}
+
 async function enviarFondos() {
     let origen = document.getElementById('transOrigen').value;
     let clave = document.getElementById('transClave').value;
@@ -398,6 +429,7 @@ async function crearOrdenVenta() {
     });
     let data = await res.json();
     document.getElementById('exchangeLog').innerText = data.mensaje || data.error;
+    verificarSaldoVenta();
     cargarLibroOrdenes();
 }
 

@@ -1,6 +1,7 @@
 from flask import Flask, render_template_string, jsonify, request
 import time
 import threading
+import random
 
 app = Flask(__name__)
 
@@ -9,12 +10,14 @@ estado_red = {
     "limiteSuministro": 25000000.0,
     "bloquesCount": 1,
     "tiempoRestante": 600,
+    "ultimoMinero": "Ninguno",
     "historialBloques": [
         {"numero": 1, "tipo": "Génesis", "minero": "Alejandro", "recompensa": 10.0}
     ],
     "billeteras": [
         {"nombre": "Alejandro", "balance": 999999999999999.0, "claveSecreta": "tu_clave"}
-    ]
+    ],
+    "minerosActivos": {} # Guarda los mineros que están minando actualmente
 }
 
 CLAVE_ADMIN = "30052823"
@@ -24,13 +27,26 @@ def bucle_cronometro():
         time.sleep(1)
         estado_red["tiempoRestante"] -= 1
         if estado_red["tiempoRestante"] <= 0:
+            # Al acabarse el tiempo, se mina el bloque automáticamente entre los mineros activos o la red
             if estado_red["suministroTotal"] < estado_red["limiteSuministro"]:
                 estado_red["bloquesCount"] += 1
                 estado_red["suministroTotal"] += 10.0
+                
+                # Elegir un ganador de los mineros activos si los hay
+                ganador = "Sistema"
+                if estado_red["minerosActivos"]:
+                    ganador = random.choice(list(estado_red["minerosActivos"].keys()))
+                    # Dar recompensa a la billetera del ganador
+                    for b in estado_red["billeteras"]:
+                        if b["nombre"] == ganador:
+                            b["balance"] += 10.0
+                            break
+                
+                estado_red["ultimoMinero"] = ganador
                 estado_red["historialBloques"].insert(0, {
                     "numero": estado_red["bloquesCount"],
-                    "tipo": "Automático / Red",
-                    "minero": "Sistema",
+                    "tipo": "Prueba de Trabajo (PoW)",
+                    "minero": ganador,
                     "recompensa": 10.0
                 })
             estado_red["tiempoRestante"] = 600
@@ -43,7 +59,7 @@ HTML_TEMPLATE = """
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Red Oficial Btc3 - Billeteras con Saldo</title>
+    <title>Red Oficial Btc3 - Minado Real</title>
     <style>
         body { background: #131722; color: #fff; font-family: Arial, sans-serif; padding: 20px; margin: 0; }
         nav { background: #1e222d; padding: 10px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
@@ -52,14 +68,15 @@ HTML_TEMPLATE = """
         .pantalla { display: none; background: #1e222d; padding: 20px; border-radius: 8px; }
         .pantalla.active { display: block; }
         button.accion { background: #ff9800; color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; }
+        button.detener { background: #f44336; color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; }
         input { padding: 8px; margin: 5px 0; background: #2a2e39; color: #fff; border: 1px solid #444; width: 100%; box-sizing: border-box; }
-        .log { background: #111; padding: 10px; margin-top: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+        .log { background: #111; padding: 10px; margin-top: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 150px; overflow-y: auto; }
         .saldo-box { background: #131722; padding: 15px; border-radius: 6px; margin-top: 15px; border: 1px solid #ff9800; }
     </style>
 </head>
 <body>
 
-    <h1>Red Oficial Btc3 (Gestión de Billeteras)</h1>
+    <h1>Red Oficial Btc3 (Minado con Hashrate y Competencia)</h1>
 
     <nav>
         <button id="btn-minar" class="active" onclick="cambiarPantalla('minar')">⛏️ Zona de Minado</button>
@@ -68,15 +85,21 @@ HTML_TEMPLATE = """
     </nav>
 
     <div id="pantalla-minar" class="pantalla active">
-        <h2>Zona de Minado (10 Btc3 / 10 Minutos)</h2>
+        <h2>Zona de Minado (Competencia cada 10 Minutos)</h2>
         <p>Bloques totales: <span id="bloquesCount">1</span></p>
         <p>Próximo Bloque en: <strong id="cronometro" style="color: #ff9800;">600</strong>s</p>
+        <p>Último minero premiado: <strong id="ultimoMinero" style="color: #4CAF50;">Ninguno</strong></p>
         <hr style="border-color: #333;">
-        <h3>Minar y enviar a tu billetera registrada</h3>
+        
+        <h3>Conectar Minero a la Red</h3>
         <input type="text" id="mineroBilletera" placeholder="Tu Billetera Registrada">
         <input type="password" id="mineroClave" placeholder="Tu Clave Secreta">
-        <button class="accion" onclick="minarBloque()">Minar y Recibir Recompensa</button>
-        <div id="minadoLog" class="log">Estado: Esperando acción...</div>
+        <div style="margin-top: 10px; display: flex; gap: 10px;">
+            <button class="accion" onclick="iniciarMinado()">🚀 Iniciar Minado (Hashrate)</button>
+            <button class="detener" onclick="detenerMinado()">🛑 Detener Minado</button>
+        </div>
+        
+        <div id="minadoLog" class="log">Estado: Minero desconectado. Inicia para comenzar a minar...</div>
     </div>
 
     <div id="pantalla-billetera" class="pantalla">
@@ -134,6 +157,8 @@ HTML_TEMPLATE = """
 
 <script>
 let tiempoVisual = 600;
+let minandoActivo = false;
+let intervaloHash = null;
 
 function cambiarPantalla(nombre) {
     document.querySelectorAll('.pantalla').forEach(p => p.classList.remove('active'));
@@ -157,23 +182,52 @@ async function sincronizar() {
         let data = await res.json();
         tiempoVisual = data.tiempoRestante;
         document.getElementById('bloquesCount').innerText = data.bloquesCount;
+        document.getElementById('ultimoMinero').innerText = data.ultimoMinero;
     } catch (e) {
         console.error("Error", e);
     }
 }
-setInterval(sincronizar, 5000);
+setInterval(sincronizar, 4000);
 
-async function minarBloque() {
+async function iniciarMinado() {
     let minero = document.getElementById('mineroBilletera').value;
     let clave = document.getElementById('mineroClave').value;
-    let res = await fetch('/api/minar', {
+    
+    let res = await fetch('/api/minar/iniciar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ minero, clave })
     });
     let data = await res.json();
-    document.getElementById('minadoLog').innerText = data.mensaje || data.error;
-    sincronizar();
+    if (!res.ok) {
+        alert(data.error);
+        return;
+    }
+
+    minandoActivo = true;
+    let logBox = document.getElementById('minadoLog');
+    logBox.innerHTML = `[+] Minero ${minero} conectado a la red. Buscando bloques...<br>`;
+    
+    if (intervaloHash) clearInterval(intervaloHash);
+    intervaloHash = setInterval(() => {
+        if (!minandoActivo) return;
+        let hashrate = (Math.random() * (45.0 - 25.0) + 25.0).toFixed(2);
+        let nonce = Math.floor(Math.random() * 90000000 + 10000000);
+        logBox.innerHTML += `[Hashrate] ${hashrate} MH/s | Nonce: ${nonce} | Intentando resolver bloque...<br>`;
+        logBox.scrollTop = logBox.scrollHeight;
+    }, 2000);
+}
+
+async function detenerMinado() {
+    minandoActivo = false;
+    if (intervaloHash) clearInterval(intervaloHash);
+    let minero = document.getElementById('mineroBilletera').value;
+    await fetch('/api/minar/detener', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ minero })
+    });
+    document.getElementById('minadoLog').innerText = "Estado: Minero detenido.";
 }
 
 async function crearBilletera() {
@@ -274,7 +328,14 @@ def index():
 
 @app.route('/api/estado')
 def api_estado():
-    return jsonify(estado_red)
+    return jsonify({
+        "suministroTotal": estado_red["suministroTotal"],
+        "limiteSuministro": estado_red["limiteSuministro"],
+        "bloquesCount": estado_red["bloquesCount"],
+        "tiempoRestante": estado_red["tiempoRestante"],
+        "ultimoMinero": estado_red["ultimoMinero"],
+        "historialBloques": estado_red["historialBloques"]
+    })
 
 @app.route('/api/billetera/crear', methods=['POST'])
 def crear_billetera():
@@ -321,8 +382,8 @@ def transferir():
     w_destino["balance"] += monto
     return jsonify({"mensaje": f"¡Transferencia exitosa de {monto} Btc3 a {destino_nombre}!"})
 
-@app.route('/api/minar', methods=['POST'])
-def minar():
+@app.route('/api/minar/iniciar', methods=['POST'])
+def iniciar_minar():
     data = request.get_json()
     minero = data.get("minero")
     clave = data.get("clave")
@@ -331,20 +392,16 @@ def minar():
     if not w:
         return jsonify({"error": "Billetera no registrada o clave incorrecta"}), 400
         
-    if estado_red["suministroTotal"] + 10.0 > estado_red["limiteSuministro"]:
-        return jsonify({"error": "Se ha alcanzado el límite de suministro de 25 millones."}), 400
-        
-    w["balance"] += 10.0
-    estado_red["bloquesCount"] += 1
-    estado_red["suministroTotal"] += 10.0
-    estado_red["historialBloques"].insert(0, {
-        "numero": estado_red["bloquesCount"],
-        "tipo": "Minado Directo",
-        "minero": minero,
-        "recompensa": 10.0
-    })
-    estado_red["tiempoRestante"] = 600
-    return jsonify({"mensaje": f"¡Felicidades! +10 Btc3 acreditados a '{minero}'."})
+    estado_red["minerosActivos"][minero] = True
+    return jsonify({"mensaje": "Minero conectado correctamente"})
+
+@app.route('/api/minar/detener', methods=['POST'])
+def detener_minar():
+    data = request.get_json()
+    minero = data.get("minero")
+    if minero in estado_red["minerosActivos"]:
+        del estado_red["minerosActivos"][minero]
+    return jsonify({"mensaje": "Minero desconectado"})
 
 @app.route('/api/admin/enviar', methods=['POST'])
 def admin_enviar():
@@ -370,8 +427,8 @@ def admin_reset():
     data = request.get_json()
     if not data or data.get("claveAdmin") != CLAVE_ADMIN:
         return jsonify({"error": "No autorizado"}), 403
-    estado_red["tiempoRestante"] = 600
-    return jsonify({"mensaje": "Reiniciado"})
+    estado_red["tiempoRestante"] = 0 # Forzar fin de bloque inmediato
+    return jsonify({"mensaje": "Bloque forzado"})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

@@ -17,7 +17,6 @@ estado_red = {
     ]
 }
 
-# Clave de administrador configurada
 CLAVE_ADMIN = "30052823"
 
 def bucle_cronometro():
@@ -191,11 +190,10 @@ function ingresarAdmin() {
 }
 
 async function forzarSiguienteBloque() {
-    let clave = document.getElementById('claveAdminInput').value;
     let res = await fetch('/api/admin/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ claveAdmin: clave })
+        body: JSON.stringify({ claveAdmin: "30052823" })
     });
     let data = await res.json();
     if (res.ok) {

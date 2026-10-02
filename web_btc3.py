@@ -17,8 +17,8 @@ estado_red = {
     ]
 }
 
-# Clave de administrador exacta
-CLAVE_ADMIN = "30052823Aa$"
+# Clave de administrador configurada
+CLAVE_ADMIN = "30052823"
 
 def bucle_cronometro():
     while True:
@@ -100,9 +100,9 @@ HTML_TEMPLATE = """
     </div>
 
     <div id="pantalla-admin" class="pantalla">
-        <h2>Panel de Dueño</h2>
+        <h2>Panel de Dueño / Administrador</h2>
         <input type="password" id="claveAdminInput" placeholder="Contraseña de Administrador">
-        <button class="accion" onclick="ingresarAdmin()">Ver Controles</button>
+        <button class="accion" onclick="ingresarAdmin()">Entrar</button>
         
         <div id="panelAdminOculto" style="display:none; margin-top: 15px;">
             <p style="color: #4CAF50;">¡Acceso de administrador concedido!</p>
@@ -182,8 +182,7 @@ async function enviarFondos() {
 
 function ingresarAdmin() {
     let clave = document.getElementById('claveAdminInput').value;
-    // Verificación directa en el cliente para evitar problemas de envío en móviles, respaldada por el servidor
-    if (clave === "30052823Aa$") {
+    if (clave === "30052823") {
         document.getElementById('panelAdminOculto').style.display = 'block';
         alert("¡Acceso concedido correctamente!");
     } else {

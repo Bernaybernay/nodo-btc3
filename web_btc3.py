@@ -23,6 +23,7 @@ estado_red = {
 }
 
 CLAVE_ADMIN = "30052823"
+NUMERO_WHATSAPP = "65993417539"
 
 def bucle_cronometro():
     while True:
@@ -72,6 +73,7 @@ HTML_TEMPLATE = """
         .pantalla.active { display: block; }
         button.accion { background: #ff9800; color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; }
         button.detener { background: #f44336; color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; }
+        button.whatsapp { background: #25D366; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; font-weight: bold; width: 100%; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; box-sizing: border-box;}
         input, select { padding: 8px; margin: 5px 0; background: #2a2e39; color: #fff; border: 1px solid #444; width: 100%; box-sizing: border-box; }
         .log { background: #111; padding: 10px; margin-top: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 150px; overflow-y: auto; }
         .saldo-box { background: #131722; padding: 15px; border-radius: 6px; margin-top: 15px; border: 1px solid #ff9800; display: flex; justify-content: space-around; }
@@ -165,14 +167,17 @@ HTML_TEMPLATE = """
         <h2>Exchange P2P & Depósito USDT</h2>
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             
-            <!-- Columna de Depósito Real -->
+            <!-- Columna de Depósito Real con Botón de WhatsApp -->
             <div style="flex: 1; min-width: 280px; background: #131722; padding: 15px; border-radius: 6px; border: 1px solid #ff9800;">
                 <h3 style="color: #ff9800; margin-top:0;">1. Depositar USDT (Red ETH/ERC20)</h3>
                 <p style="font-size: 13px; color: #ccc;">Envía tus USDT a la siguiente dirección oficial de depósito:</p>
                 <div style="background: #111; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 11px; word-break: break-all; color: #4CAF50;" id="walletOficial">
                     0x9b4fecb9684f8949925b836fb0863e9249a29fc0
                 </div>
-                <p style="font-size: 12px; color: #888; margin-top: 10px;">Una vez hecho el envío, notifica a Alejandro con tu comprobante para que acredite el saldo USDT en tu cuenta.</p>
+                <p style="font-size: 12px; color: #888; margin-top: 10px;">Una vez realizado el depósito, confirma enviando tu comprobante por WhatsApp:</p>
+                <a href="https://wa.me/59165993417539?text=Hola,%20adjunto%20mi%20comprobante%20de%20depósito%20USDT%20para%20la%20acreditación%20de%20saldo%20en%20Btc3." class="whatsapp" target="_blank">
+                    💬 Confirmar por WhatsApp (65993417539)
+                </a>
             </div>
 
             <!-- Columna de Publicar Orden de Venta de Btc3 -->

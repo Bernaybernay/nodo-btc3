@@ -9,7 +9,7 @@ estado_red = {
     "suministroTotal": 10.0,
     "limiteSuministro": 2500000000,
     "bloquesCount": 1,
-    "tiempoRestante": 60,  # Duración del bloque en segundos
+    "tiempoRestante": 60,
     "historialBloques": [
         {"numero": 1, "tipo": "Solitario", "minero": "Gabriel", "recompensa": 10.0}
     ],
@@ -18,34 +18,28 @@ estado_red = {
     ]
 }
 
-# Contraseña de administrador (cámbiala por la que prefieras)
 CLAVE_ADMIN = "admin1234_cambiala"
 
-# Hilo en segundo plano para que el cronómetro corra automáticamente sin parar
+# Hilo automático para el cronómetro de bloques
 def bucle_cronometro():
     while True:
         time.sleep(1)
         estado_red["tiempoRestante"] -= 1
         if estado_red["tiempoRestante"] <= 0:
-            # Al llegar a 0, avanza al siguiente bloque automáticamente
             estado_red["bloquesCount"] += 1
             estado_red["suministroTotal"] += 10.0
-            
             estado_red["historialBloques"].insert(0, {
                 "numero": estado_red["bloquesCount"],
                 "tipo": "Automático / Red",
                 "minero": "Sistema",
                 "recompensa": 10.0
             })
-            
-            # Reiniciar el temporizador del bloque
             estado_red["tiempoRestante"] = 60
 
-# Iniciar el hilo del reloj al arrancar Flask
 hilo = threading.Thread(target=bucle_cronometro, daemon=True)
 hilo.start()
 
-# Interfaz HTML mejorada con el cronómetro en tiempo real y panel de administrador
+# Plantilla HTML con múltiples pantallas (Pestañas)
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="es">
@@ -53,38 +47,91 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <title>Red Oficial Btc3</title>
     <style>
-        body { background: #131722; color: #fff; font-family: Arial, sans-serif; padding: 20px; }
-        .panel { background: #1e222d; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
-        button { background: #ff9800; color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; }
-        input { padding: 8px; margin-right: 5px; background: #2a2e39; color: #fff; border: 1px solid #444; }
+        body { background: #131722; color: #fff; font-family: Arial, sans-serif; padding: 20px; margin: 0; }
+        nav { background: #1e222d; padding: 10px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; }
+        nav button { background: #2a2e39; color: #fff; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        nav button.active { background: #ff9800; }
+        .pantalla { display: none; background: #1e222d; padding: 20px; border-radius: 8px; }
+        .pantalla.active { display: block; }
+        button.accion { background: #ff9800; color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; }
+        input, select { padding: 8px; margin: 5px 0; background: #2a2e39; color: #fff; border: 1px solid #444; width: 100%; box-sizing: border-box; }
+        .log { background: #111; padding: 10px; margin-top: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; }
     </style>
 </head>
 <body>
 
     <h1>Red Oficial Btc3</h1>
-    
-    <div class="panel">
-        <h3>Estado del Bloque</h3>
-        <p>Bloques: <span id="bloquesCount">1</span></p>
-        <p>Próximo Bloque en: <span id="cronometro">60</span>s</p>
+
+    <!-- Menú de navegación entre pantallas -->
+    <nav>
+        <button id="btn-minar" class="active" onclick="cambiarPantalla('minar')">⛏️ Zona de Minado</button>
+        <button id="btn-billetera" onclick="cambiarPantalla('billetera')">💼 Billetera (Enviar/Recibir)</button>
+        <button id="btn-admin" onclick="cambiarPantalla('admin')">⚙️ Admin</button>
+    </nav>
+
+    <!-- PANTALLA 1: ZONA DE MINADO -->
+    <div id="pantalla-minar" class="pantalla active">
+        <h2>Zona de Minado</h2>
+        <p>Bloques totales: <span id="bloquesCount">1</span></p>
+        <p>Próximo Bloque en: <strong id="cronometro" style="color: #ff9800;">60</strong>s</p>
+        
+        <hr style="border-color: #333;">
+        <h3>Minar Bloque Solitario</h3>
+        <input type="text" id="mineroBilletera" placeholder="Nombre de tu Billetera">
+        <input type="password" id="mineroClave" placeholder="Clave Secreta">
+        <button class="accion" onclick="minarBloque()">Comenzar a Minar</button>
+        <div id="minadoLog" class="log">Estado: Esperando acción...</div>
     </div>
 
-    <!-- Panel de Administrador / Dueño -->
-    <div class="panel" style="border: 1px solid #ff9800;">
-        <h3>Panel de Dueño / Administrador</h3>
-        <input type="password" id="claveAdminInput" placeholder="Contraseña de Administrador">
-        <button onclick="ingresarAdmin()">Entrar</button>
+    <!-- PANTALLA 2: GESTIÓN DE BILLETERA (Enviar y Recibir) -->
+    <div id="pantalla-billetera" class="pantalla">
+        <h2>Gestión de Billetera</h2>
+        <p>Crea tu billetera o gestiona tus fondos de forma segura con tu clave personal.</p>
         
-        <div id="panelAdmin" style="display:none; margin-top: 15px;">
-            <p style="color: #4CAF50; font-weight: bold;">¡Acceso de Administrador Concedido!</p>
-            <button onclick="forzarSiguienteBloque()" style="background: #f44336;">Forzar Siguiente Bloque</button>
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 250px; background: #131722; padding: 15px; border-radius: 6px;">
+                <h3>Crear / Registrar Billetera</h3>
+                <input type="text" id="regNombre" placeholder="Nombre de Billetera">
+                <input type="password" id="regClave" placeholder="Clave Secreta">
+                <button class="accion" onclick="crearBilletera()">Registrar</button>
+            </div>
+
+            <div style="flex: 1; min-width: 250px; background: #131722; padding: 15px; border-radius: 6px;">
+                <h3>Transferir / Enviar Fondos</h3>
+                <input type="text" id="transOrigen" placeholder="Tu Billetera Origen">
+                <input type="password" id="transClave" placeholder="Tu Clave Secreta">
+                <input type="text" id="transDestino" placeholder="Billetera Destino">
+                <input type="number" id="transMonto" placeholder="Monto Btc3">
+                <button class="accion" onclick="enviarFondos()">Enviar</button>
+            </div>
+        </div>
+        <div id="billeteraLog" class="log" style="margin-top: 15px;"></div>
+    </div>
+
+    <!-- PANTALLA 3: PANEL DE ADMINISTRADOR -->
+    <div id="pantalla-admin" class="pantalla">
+        <h2>Panel de Dueño</h2>
+        <input type="password" id="claveAdminInput" placeholder="Contraseña de Administrador">
+        <button class="accion" onclick="ingresarAdmin()">Ver Controles</button>
+        
+        <div id="panelAdminOculto" style="display:none; margin-top: 15px;">
+            <p style="color: #4CAF50;">¡Acceso concedido!</p>
+            <button class="accion" style="background: #f44336;" onclick="forzarSiguienteBloque()">Forzar Siguiente Bloque</button>
         </div>
     </div>
 
 <script>
 let tiempoVisual = 60;
 
-// Descenso fluido del contador cada segundo en la pantalla
+function cambiarPantalla(nombre) {
+    document.querySelectorAll('.pantalla').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    
+    document.getElementById('pantalla-' + nombre).classList.add('active');
+    document.getElementById('btn-' + nombre).classList.add('active');
+}
+
+// Cronómetro visual fluido
 setInterval(() => {
     if (tiempoVisual > 0) {
         tiempoVisual--;
@@ -92,7 +139,6 @@ setInterval(() => {
     }
 }, 1000);
 
-// Sincronizar con Flask cada 5 segundos para evitar desfases
 async function sincronizar() {
     try {
         let res = await fetch('/api/estado');
@@ -101,35 +147,67 @@ async function sincronizar() {
         document.getElementById('cronometro').innerText = tiempoVisual;
         document.getElementById('bloquesCount').innerText = data.bloquesCount;
     } catch (e) {
-        console.error("Error sincronizando", e);
+        console.error("Error de sincronización", e);
     }
 }
 setInterval(sincronizar, 5000);
 
+async function minarBloque() {
+    let minero = document.getElementById('mineroBilletera').value;
+    let clave = document.getElementById('mineroClave').value;
+    let res = await fetch('/api/minar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ minero, clave })
+    });
+    let data = await res.json();
+    document.getElementById('minadoLog').innerText = data.mensaje || data.error;
+    sincronizar();
+}
+
+async function crearBilletera() {
+    let nombre = document.getElementById('regNombre').value;
+    let clave = document.getElementById('regClave').value;
+    let res = await fetch('/api/billetera/crear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, clave })
+    });
+    let data = await res.json();
+    document.getElementById('billeteraLog').innerText = data.mensaje || data.error;
+}
+
+async function enviarFondos() {
+    let origen = document.getElementById('transOrigen').value;
+    let clave = document.getElementById('transClave').value;
+    let destino = document.getElementById('transDestino').value;
+    let monto = parseFloat(document.getElementById('transMonto').value);
+    
+    let res = await fetch('/api/transferir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ origen, clave, destino, monto })
+    });
+    let data = await res.json();
+    document.getElementById('billeteraLog').innerText = data.mensaje || data.error;
+}
+
 function ingresarAdmin() {
-    let clave = document.getElementById('claveAdminInput').value;
-    if (clave === "admin1234_cambiala") {
-        document.getElementById('panelAdmin').style.display = 'block';
-        alert("Bienvenido, dueño.");
+    if (document.getElementById('claveAdminInput').value === "admin1234_cambiala") {
+        document.getElementById('panelAdminOculto').style.display = 'block';
     } else {
-        alert("Contraseña incorrecta.");
+        alert("Clave incorrecta");
     }
 }
 
 async function forzarSiguienteBloque() {
-    let clave = document.getElementById('claveAdminInput').value;
     let res = await fetch('/api/admin/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ claveAdmin: clave })
+        body: JSON.stringify({ claveAdmin: "admin1234_cambiala" })
     });
-    let data = await res.json();
-    if (res.ok) {
-        alert("Bloque reiniciado con éxito.");
-        sincronizar();
-    } else {
-        alert(data.error);
-    }
+    sincronizar();
+    alert("Bloque forzado.");
 }
 
 sincronizar();
@@ -147,14 +225,72 @@ def index():
 def api_estado():
     return jsonify(estado_red)
 
-@app.route('/api/admin/reset', methods=['POST'])
-def api_admin_reset():
+@app.route('/api/billetera/crear', methods=['POST'])
+def crear_billetera():
     data = request.get_json()
-    if not data or data.get("claveAdmin") != CLAVE_ADMIN:
-        return jsonify({"error": "Contraseña de administrador incorrecta"}), 403
+    nombre = data.get("nombre")
+    clave = data.get("clave")
+    if not nombre or not clave:
+        return jsonify({"error": "Faltan datos"}), 400
     
+    for b in estado_red["billeteras"]:
+        if b["nombre"] == nombre:
+            return jsonify({"error": "La billetera ya existe"}), 400
+            
+    estado_red["billeteras"].append({"nombre": nombre, "balance": 0.0, "claveSecreta": clave})
+    return jsonify({"mensaje": f"Billetera '{nombre}' creada con éxito."})
+
+@app.route('/api/transferir', methods=['POST'])
+def transferir():
+    data = request.get_json()
+    origen_nombre = data.get("origen")
+    clave = data.get("clave")
+    destino_nombre = data.get("destino")
+    monto = data.get("monto")
+    
+    w_origen = next((b for b in estado_red["billeteras"] if b["nombre"] == origen_nombre and b["claveSecreta"] == clave), None)
+    w_destino = next((b for b in estado_red["billeteras"] if b["nombre"] == destino_nombre), None)
+    
+    if not w_origen:
+        return jsonify({"error": "Billetera de origen o clave incorrecta"}), 400
+    if not w_destino:
+        return jsonify({"error": "Billetera de destino no encontrada"}), 400
+    if w_origen["balance"] < monto:
+        return jsonify({"error": "Fondos insuficientes"}), 400
+        
+    w_origen["balance"] -= monto
+    w_destino["balance"] += monto
+    return jsonify({"mensaje": f"Transferencia exitosa de {monto} Btc3 a {destino_nombre}"})
+
+@app.route('/api/minar', methods=['POST'])
+def minar():
+    data = request.get_json()
+    minero = data.get("minero")
+    clave = data.get("clave")
+    
+    w = next((b for b in estado_red["billeteras"] if b["nombre"] == minero and b["claveSecreta"] == clave), None)
+    if not w:
+        return jsonify({"error": "Billetera o clave de minero inválida"}), 400
+        
+    w["balance"] += 10.0
+    estado_red["bloquesCount"] += 1
+    estado_red["suministroTotal"] += 10.0
+    estado_red["historialBloques"].insert(0, {
+        "numero": estado_red["bloquesCount"],
+        "tipo": "Solitario",
+        "minero": minero,
+        "recompensa": 10.0
+    })
     estado_red["tiempoRestante"] = 60
-    return jsonify({"mensaje": "Reiniciado correctamente", "estado": estado_red})
+    return jsonify({"mensaje": f"¡Bloque minado con éxito! 10 Btc3 añadidos a {minero}"})
+
+@app.route('/api/admin/reset', methods=['POST'])
+def admin_reset():
+    data = request.get_json()
+    if data.get("claveAdmin") != CLAVE_ADMIN:
+        return jsonify({"error": "No autorizado"}), 403
+    estado_red["tiempoRestante"] = 60
+    return jsonify({"mensaje": "Reiniciado"})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

@@ -43,7 +43,7 @@ HTML_TEMPLATE = """
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Red Oficial Btc3 - Minado Directo</title>
+    <title>Red Oficial Btc3 - Billeteras con Saldo</title>
     <style>
         body { background: #131722; color: #fff; font-family: Arial, sans-serif; padding: 20px; margin: 0; }
         nav { background: #1e222d; padding: 10px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
@@ -54,11 +54,12 @@ HTML_TEMPLATE = """
         button.accion { background: #ff9800; color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; }
         input { padding: 8px; margin: 5px 0; background: #2a2e39; color: #fff; border: 1px solid #444; width: 100%; box-sizing: border-box; }
         .log { background: #111; padding: 10px; margin-top: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+        .saldo-box { background: #131722; padding: 15px; border-radius: 6px; margin-top: 15px; border: 1px solid #ff9800; }
     </style>
 </head>
 <body>
 
-    <h1>Red Oficial Btc3 (Minado Directo a Billetera)</h1>
+    <h1>Red Oficial Btc3 (Gestión de Billeteras)</h1>
 
     <nav>
         <button id="btn-minar" class="active" onclick="cambiarPantalla('minar')">⛏️ Zona de Minado</button>
@@ -81,12 +82,25 @@ HTML_TEMPLATE = """
     <div id="pantalla-billetera" class="pantalla">
         <h2>Gestión de Billetera</h2>
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+            
             <div style="flex: 1; min-width: 250px; background: #131722; padding: 15px; border-radius: 6px;">
-                <h3>Registrarse (Inicia con 0 Btc3)</h3>
+                <h3>Registrarse</h3>
                 <input type="text" id="regNombre" placeholder="Nombre de Billetera">
                 <input type="password" id="regClave" placeholder="Clave Secreta">
                 <button class="accion" onclick="crearBilletera()">Registrar</button>
             </div>
+
+            <div style="flex: 1; min-width: 250px; background: #131722; padding: 15px; border-radius: 6px;">
+                <h3>Consultar Saldo</h3>
+                <input type="text" id="saldoNombre" placeholder="Tu Billetera">
+                <input type="password" id="saldoClave" placeholder="Tu Clave Secreta">
+                <button class="accion" onclick="consultarSaldo()">Ver Mi Saldo</button>
+                <div id="saldoResultado" class="saldo-box" style="display:none;">
+                    <p style="margin:0; color: #888;">Saldo Disponible:</p>
+                    <h2 id="valorSaldo" style="color: #4CAF50; margin: 5px 0 0 0;">0.0 Btc3</h2>
+                </div>
+            </div>
+
             <div style="flex: 1; min-width: 250px; background: #131722; padding: 15px; border-radius: 6px;">
                 <h3>Transferir Fondos</h3>
                 <input type="text" id="transOrigen" placeholder="Tu Billetera Origen">
@@ -95,6 +109,7 @@ HTML_TEMPLATE = """
                 <input type="number" id="transMonto" placeholder="Monto Btc3">
                 <button class="accion" onclick="enviarFondos()">Enviar</button>
             </div>
+
         </div>
         <div id="billeteraLog" class="log" style="margin-top: 15px;"></div>
     </div>
@@ -110,7 +125,7 @@ HTML_TEMPLATE = """
             <h3>Emisión de Fondos (Desde Alejandro)</h3>
             <input type="text" id="adminDestino" placeholder="Billetera Destino">
             <input type="number" id="adminMonto" placeholder="Cantidad de Btc3">
-            <button class="accion" style="background: #4CAF50;" onclick="adminEnviarFondos()">Enviar Fondos Infinitos</button>
+            <button class="accion" style="background: #4CAF50;" onclick="adminEnviarFondos()">Enviar Fondos</button>
             <br><br>
             <button class="accion" style="background: #f44336;" onclick="forzarSiguienteBloque()">Forzar Siguiente Bloque</button>
             <div id="adminLog" class="log" style="margin-top: 10px;"></div>
@@ -171,6 +186,24 @@ async function crearBilletera() {
     });
     let data = await res.json();
     document.getElementById('billeteraLog').innerText = data.mensaje || data.error;
+}
+
+async function consultarSaldo() {
+    let nombre = document.getElementById('saldoNombre').value;
+    let clave = document.getElementById('saldoClave').value;
+    let res = await fetch('/api/billetera/saldo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, clave })
+    });
+    let data = await res.json();
+    if (res.ok) {
+        document.getElementById('valorSaldo').innerText = data.balance + " Btc3";
+        document.getElementById('saldoResultado').style.display = 'block';
+    } else {
+        alert(data.error);
+        document.getElementById('saldoResultado').style.display = 'none';
+    }
 }
 
 async function enviarFondos() {
@@ -254,7 +287,17 @@ def crear_billetera():
         if b["nombre"] == nombre:
             return jsonify({"error": "La billetera ya existe"}), 400
     estado_red["billeteras"].append({"nombre": nombre, "balance": 0.0, "claveSecreta": clave})
-    return jsonify({"mensaje": f"Billetera '{nombre}' registrada con éxito. ¡Ya puedes usarla para minar!"})
+    return jsonify({"mensaje": f"Billetera '{nombre}' registrada con éxito."})
+
+@app.route('/api/billetera/saldo', methods=['POST'])
+def obtener_saldo():
+    data = request.get_json()
+    nombre = data.get("nombre")
+    clave = data.get("clave")
+    w = next((b for b in estado_red["billeteras"] if b["nombre"] == nombre and b["claveSecreta"] == clave), None)
+    if not w:
+        return jsonify({"error": "Billetera o clave incorrecta"}), 400
+    return jsonify({"balance": w["balance"]})
 
 @app.route('/api/transferir', methods=['POST'])
 def transferir():
@@ -301,7 +344,7 @@ def minar():
         "recompensa": 10.0
     })
     estado_red["tiempoRestante"] = 600
-    return jsonify({"mensaje": f"¡Felicidades! +10 Btc3 acreditados directamente a tu billetera '{minero}'."})
+    return jsonify({"mensaje": f"¡Felicidades! +10 Btc3 acreditados a '{minero}'."})
 
 @app.route('/api/admin/enviar', methods=['POST'])
 def admin_enviar():
@@ -320,7 +363,7 @@ def admin_enviar():
         
     w_alejandro["balance"] -= monto
     w_destino["balance"] += monto
-    return jsonify({"mensaje": f"¡Enviados {monto} Btc3 desde la billetera de Alejandro a {destino_nombre}!"})
+    return jsonify({"mensaje": f"¡Enviados {monto} Btc3 desde Alejandro a {destino_nombre}!"})
 
 @app.route('/api/admin/reset', methods=['POST'])
 def admin_reset():

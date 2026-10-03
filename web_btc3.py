@@ -2,10 +2,14 @@ from flask import Flask, render_template_string, jsonify, request
 import time
 import threading
 import random
+import json
+import os
 
 app = Flask(__name__)
 
-estado_red = {
+ARCHIVO_DATOS = "estado_red.json"
+
+estado_inicial = {
     "suministroTotal": 10.0,
     "limiteSuministro": 25000000.0,
     "bloquesCount": 1,
@@ -22,6 +26,30 @@ estado_red = {
     "walletOficialUSDT": "0x9b4fecb9684f8949925b836fb0863e9249a29fc0",
     "tasaBtc3Usdt": 10.0  # 1 USDT = 10 Btc3
 }
+
+def cargar_estado():
+    if os.path.exists(ARCHIVO_DATOS):
+        try:
+            with open(ARCHIVO_DATOS, "r", encoding="utf-8") as f:
+                datos = json.load(f)
+                # Asegurar que minerosActivos inicie limpio al reiniciar el servidor web
+                datos["minerosActivos"] = {}
+                return datos
+        except Exception:
+            pass
+    return estado_inicial
+
+def guardar_estado():
+    try:
+        with open(ARCHIVO_DATOS, "w", encoding="utf-8") as f:
+            # No guardamos minerosActivos en disco para que inicien desconectados tras un reinicio real
+            copia = estado_red.copy()
+            copia["minerosActivos"] = {}
+            json.dump(copia, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print("Error al guardar estado:", e)
+
+estado_red = cargar_estado()
 
 CLAVE_ADMIN = "30052823"
 NUMERO_WHATSAPP = "65993417539"
@@ -54,6 +82,7 @@ def bucle_cronometro():
                     "minero": ganador,
                     "recompensa": 10.0
                 })
+                guardar_estado()
             estado_red["tiempoRestante"] = 600
 
 hilo = threading.Thread(target=bucle_cronometro, daemon=True)
@@ -157,10 +186,8 @@ HTML_TEMPLATE = """
         <div id="billeteraLog" class="log" style="margin-top: 15px;"></div>
     </div>
 
-    <!-- PANTALLA EXCHANGE (COMPRA CON USDT REAL) -->
+    <!-- PANTALLA EXCHANGE -->
     <div id="pantalla-exchange" class="pantalla">
-        
-        <!-- ANUNCIO PUBLICITARIO -->
         <div class="banner-anuncio">
             <h2 style="margin: 0 0 5px 0;">🚀 ¡Tasa Oficial de Adquisición!</h2>
             <p style="margin: 0; font-size: 15px;"><strong>1 USDT = 10 Btc3</strong>. Compra segura y directa con acreditación vía WhatsApp.</p>
@@ -168,8 +195,6 @@ HTML_TEMPLATE = """
 
         <h2>Exchange P2P & Depósito USDT</h2>
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-            
-            <!-- Columna de Depósito Real con Calculadora y Botón de WhatsApp -->
             <div style="flex: 1; min-width: 280px; background: #131722; padding: 15px; border-radius: 6px; border: 1px solid #ff9800;">
                 <h3 style="color: #ff9800; margin-top:0;">1. Depositar USDT (Red ETH/ERC20)</h3>
                 <p style="font-size: 13px; color: #ccc;">Envía tus USDT a la dirección oficial:</p>
@@ -177,7 +202,6 @@ HTML_TEMPLATE = """
                     0x9b4fecb9684f8949925b836fb0863e9249a29fc0
                 </div>
                 
-                <!-- Calculadora de Tasa (1 USD = 10 Btc3) -->
                 <div class="calculadora-box">
                     <p style="margin: 0 0 5px 0; font-size: 13px; color: #ff9800; font-weight: bold;">🧮 Calculadora (1 USDT = 10 Btc3):</p>
                     <input type="number" id="calcUsdt" placeholder="Cantidad de USDT a invertir" oninput="calcularBtc3Recibidos()">
@@ -190,7 +214,6 @@ HTML_TEMPLATE = """
                 </a>
             </div>
 
-            <!-- Columna de Publicar Orden de Venta de Btc3 -->
             <div style="flex: 1; min-width: 280px; background: #131722; padding: 15px; border-radius: 6px;">
                 <h3 style="margin-top:0;">2. Vender Btc3 por USDT</h3>
                 <input type="text" id="vendeNombre" placeholder="Tu Billetera" oninput="verificarSaldoVenta()">
@@ -202,7 +225,6 @@ HTML_TEMPLATE = """
                 <input type="number" id="vendePrecio" placeholder="Precio en USDT por cada Btc3 (Sugerido: 0.1)">
                 <button class="accion" onclick="crearOrdenVenta()">Publicar Oferta</button>
             </div>
-
         </div>
 
         <h3 style="margin-top: 25px;">Mercado Activo (Libro de Órdenes)</h3>
@@ -252,7 +274,7 @@ function cambiarPantalla(nombre) {
 
 function calcularBtc3Recibidos() {
     let usdt = parseFloat(document.getElementById('calcUsdt').value) || 0;
-    let btc3 = usdt * 10; // Tasa fija: 1 USDT = 10 Btc3
+    let btc3 = usdt * 10;
     document.getElementById('resultadoBtc3').innerText = btc3.toFixed(2) + " Btc3";
 }
 
@@ -566,6 +588,7 @@ def crear_billetera():
     for b in estado_red["billeteras"]:
         if b["nombre"] == nombre: return jsonify({"error": "La billetera ya existe"}), 400
     estado_red["billeteras"].append({"nombre": nombre, "balance": 0.0, "usdt": 0.0, "claveSecreta": clave})
+    guardar_estado()
     return jsonify({"mensaje": f"Billetera '{nombre}' registrada con éxito."})
 
 @app.route('/api/billetera/saldo', methods=['POST'])
@@ -585,6 +608,7 @@ def transferir():
     if w_origen["balance"] < monto: return jsonify({"error": "Fondos insuficientes"}), 400
     w_origen["balance"] -= monto
     w_destino["balance"] += monto
+    guardar_estado()
     return jsonify({"mensaje": f"¡Transferencia exitosa de {monto} Btc3!"})
 
 @app.route('/api/exchange/vender', methods=['POST'])
@@ -607,6 +631,7 @@ def exchange_vender():
         "precio": precio
     }
     estado_red["ordenesMercado"].append(nueva_orden)
+    guardar_estado()
     return jsonify({"mensaje": "Oferta publicada en el mercado con éxito."})
 
 @app.route('/api/exchange/ordenes')
@@ -637,6 +662,7 @@ def exchange_comprar():
     comprador["balance"] += orden["cantidad"]
     
     estado_red["ordenesMercado"].remove(orden)
+    guardar_estado()
     return jsonify({"mensaje": f"¡Compra exitosa de {orden['cantidad']} Btc3!"})
 
 @app.route('/api/minar/iniciar', methods=['POST'])
@@ -662,6 +688,7 @@ def admin_acreditar_usdt():
     if not destino: return jsonify({"error": "Billetera destino no encontrada"}), 400
     monto = data.get("monto")
     destino["usdt"] += monto
+    guardar_estado()
     return jsonify({"mensaje": f"¡Acreditados {monto} USDT a {destino['nombre']} con éxito!"})
 
 @app.route('/api/admin/enviar', methods=['POST'])
@@ -674,6 +701,7 @@ def admin_enviar():
     monto = data.get("monto")
     alejandro["balance"] -= monto
     destino["balance"] += monto
+    guardar_estado()
     return jsonify({"mensaje": f"¡Enviados {monto} Btc3 desde Alejandro!"})
 
 @app.route('/api/admin/reset', methods=['POST'])
